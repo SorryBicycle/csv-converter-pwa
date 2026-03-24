@@ -3,8 +3,7 @@ import OpenAI from 'openai';
 export async function processBatchWithAI(
   apiKey: string,
   templateSchema: string[],
-  rawBatch: any[],
-  exampleTargetRow?: any
+  rawBatch: any[]
 ): Promise<any[]> {
   
   // Note: Using OpenAI SDK but configured for xAI by default if they provide an xAI key,
