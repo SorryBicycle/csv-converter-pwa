@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UploadCloud, FileSpreadsheet, Key, Settings2, Download, AlertCircle, Play, Loader2 } from 'lucide-react';
+import { UploadCloud, FileSpreadsheet, Key, Settings2, Download, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import Papa from 'papaparse';
 import { parseFileToJSON } from './utils/fileParser';
 import { processBatchWithAI } from './services/ai';
@@ -15,7 +15,7 @@ export default function App() {
   const [resultCsv, setResultCsv] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedKey = localStorage.getItem('xai_api_key');
+    const savedKey = localStorage.getItem('xai_api_key') || import.meta.env.VITE_GROQ_API_KEY;
     if (savedKey) setApiKey(savedKey);
   }, []);
 
@@ -112,43 +112,49 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
-      <div className="w-full max-w-4xl space-y-8">
+    <div className="min-h-screen py-16 px-4 sm:px-6 lg:px-8 flex flex-col items-center relative overflow-hidden">
+      
+      {/* Animated Background Blob */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-500/20 rounded-full blur-[120px] -z-10 animate-blob mix-blend-screen pointer-events-none"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-[120px] -z-10 animate-blob mix-blend-screen pointer-events-none" style={{ animationDelay: '2s' }}></div>
+
+      <div className="w-full max-w-5xl space-y-10 relative z-10">
         
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center p-3 bg-brand-500/10 rounded-2xl mb-4">
-            <FileSpreadsheet className="w-10 h-10 text-brand-400" />
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center p-4 rounded-3xl bg-white/5 border border-white/10 shadow-2xl backdrop-blur-md mb-2 relative group transition-all duration-300 hover:scale-105">
+            <div className="absolute inset-0 bg-gradient-to-tr from-brand-500/20 to-purple-500/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <FileSpreadsheet className="w-10 h-10 text-brand-400 relative z-10" strokeWidth={1.5} />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white mb-2">
+          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-zinc-200 to-zinc-500 pb-2">
             Universal Converter
           </h1>
-          <p className="text-slate-400 text-lg max-w-2xl mx-auto mt-2">
+          <p className="text-zinc-400 text-lg max-w-2xl mx-auto font-medium tracking-wide">
             Intelligently transform any supplier price list into your target Shopify template using AI. 
             All processing happens securely in your browser.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-6">
           
           {/* Settings Sidebar */}
-          <div className="md:col-span-1 space-y-6">
-            <div className="glass-panel p-6 shadow-2xl bg-slate-800/80">
-              <h2 className="text-lg font-semibold flex items-center gap-2 mb-4 text-white">
-                <Settings2 className="w-5 h-5 text-brand-400" /> Configuration
+          <div className="lg:col-span-4 space-y-6">
+            <div className="glass-panel p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+              <h2 className="text-lg font-semibold flex items-center gap-2 mb-5 text-white">
+                <Settings2 className="w-5 h-5 text-zinc-400" strokeWidth={1.5} /> Configuration
               </h2>
               <div>
-                <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                  <Key className="w-4 h-4" /> API Key (xAI / OpenAI)
+                <label className="text-sm font-medium text-zinc-300 flex items-center gap-2 mb-2">
+                  <Key className="w-4 h-4 text-brand-400" /> API Key (Groq / OpenAI)
                 </label>
                 <input 
                   type="password" 
-                  className="glass-input mt-2" 
-                  placeholder="xoxb-..." 
+                  className="glass-input" 
+                  placeholder="gsk-..." 
                   value={apiKey}
                   onChange={handleKeySave}
                 />
-                <p className="text-xs text-slate-500 mt-3 leading-relaxed">
+                <p className="text-xs text-zinc-500 mt-4 leading-relaxed font-medium">
                   Stored locally for privacy. Processing happens directly between your browser and the AI API.
                 </p>
               </div>
@@ -156,15 +162,19 @@ export default function App() {
             
             {/* Status Panel if Result exists */}
             {resultCsv && !isProcessing && (
-              <div className="glass-panel p-6 border-green-500/30 bg-green-500/10 shadow-[0_0_15px_rgba(34,197,94,0.1)]">
-                <h3 className="text-green-400 font-semibold mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              <div className="glass-panel p-6 border-emerald-500/20 bg-emerald-500/5 overflow-hidden relative group">
+                <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <h3 className="text-emerald-400 font-semibold mb-4 flex items-center gap-2 relative z-10">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
                   Conversion Complete!
                 </h3>
                 <a 
                   href={resultCsv} 
                   download="converted_shopify.csv"
-                  className="btn-primary w-full shadow-green-500/20 bg-green-600 hover:bg-green-500"
+                  className="flex items-center justify-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-semibold py-3 px-6 rounded-xl transition-all duration-300 relative z-10"
                 >
                   <Download className="w-5 h-5" /> Download CSV
                 </a>
@@ -173,58 +183,65 @@ export default function App() {
           </div>
           
           {/* Main Upload Area */}
-          <div className="md:col-span-2 space-y-6">
-            <div className="glass-panel p-6 md:p-8 space-y-6 shadow-2xl bg-slate-800/80">
+          <div className="lg:col-span-8 space-y-6">
+            <div className="glass-panel p-6 sm:p-8 md:p-10 space-y-8 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Template Upload */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">1. Target Template (.csv)</label>
-                  <label className="drop-zone relative h-44 bg-slate-900/50">
-                    <input type="file" accept=".csv" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => handleFileDrop(e, 'template')} />
-                    <UploadCloud className={`w-10 h-10 mb-4 transition-colors ${templateFile ? 'text-brand-400' : 'text-slate-500'}`} />
-                    <span className="text-sm text-slate-200 font-medium text-center px-4 truncate w-full">
+                <div className="group">
+                  <label className="block text-sm font-semibold text-zinc-300 mb-3 ml-1 flex items-center gap-2">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-[10px] text-brand-400 font-mono">1</span>
+                    Target Template (.csv)
+                  </label>
+                  <label className="drop-zone h-48">
+                    <input type="file" accept=".csv" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onChange={(e) => handleFileDrop(e, 'template')} />
+                    <UploadCloud className={`w-10 h-10 mb-4 transition-all duration-500 group-hover:-translate-y-1 ${templateFile ? 'text-brand-400 scale-110' : 'text-zinc-500'}`} strokeWidth={1.5} />
+                    <span className="text-sm text-zinc-200 font-medium text-center px-4 truncate w-full relative z-0">
                       {templateFile ? templateFile.name : "Upload Template File"}
                     </span>
-                    <span className="text-xs text-slate-500 mt-2">Provides the target schema</span>
+                    <span className="text-xs text-zinc-500 mt-2 font-medium">Provides the target schema</span>
                   </label>
                 </div>
                 
                 {/* Supplier Upload */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">2. Supplier Data (.xlsx/.csv)</label>
-                  <label className="drop-zone relative h-44 bg-slate-900/50">
-                    <input type="file" accept=".csv, .xlsx, .xls" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => handleFileDrop(e, 'supplier')} />
-                    <FileSpreadsheet className={`w-10 h-10 mb-4 transition-colors ${supplierFile ? 'text-brand-400' : 'text-slate-500'}`} />
-                    <span className="text-sm text-slate-200 font-medium text-center px-4 truncate w-full">
-                      {supplierFile ? supplierFile.name : "Upload Supplier File"}
+                <div className="group">
+                  <label className="block text-sm font-semibold text-zinc-300 mb-3 ml-1 flex items-center gap-2">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-[10px] text-brand-400 font-mono">2</span>
+                    Supplier Data (.xlsx/.csv)
+                  </label>
+                  <label className="drop-zone h-48">
+                    <input type="file" accept=".csv, .xlsx, .xls" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onChange={(e) => handleFileDrop(e, 'supplier')} />
+                    <FileSpreadsheet className={`w-10 h-10 mb-4 transition-all duration-500 group-hover:-translate-y-1 ${supplierFile ? 'text-brand-400 scale-110' : 'text-zinc-500'}`} strokeWidth={1.5} />
+                    <span className="text-sm text-zinc-200 font-medium text-center px-4 truncate w-full relative z-0">
+                      {supplierFile ? supplierFile.name : "Upload Raw Data File"}
                     </span>
-                    <span className="text-xs text-slate-500 mt-2">Raw data to convert</span>
+                    <span className="text-xs text-zinc-500 mt-2 font-medium">Data you want to convert</span>
                   </label>
                 </div>
               </div>
 
               {error && (
-                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-400 text-sm shadow-inner">
-                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                  <p className="leading-relaxed">{error}</p>
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-400 text-sm shadow-inner backdrop-blur-md animate-in fade-in slide-in-from-top-2">
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" strokeWidth={2} />
+                  <p className="leading-relaxed font-medium">{error}</p>
                 </div>
               )}
 
               {/* Action Button */}
-              <div className="pt-4">
+              <div className="pt-2">
                 <button 
                   onClick={startProcessing} 
                   disabled={isProcessing || !templateFile || !supplierFile}
-                  className="btn-primary w-full py-4 text-lg font-semibold rounded-xl"
+                  className="btn-primary w-full group relative overflow-hidden"
                 >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
                   {isProcessing ? (
                     <>
-                      <Loader2 className="w-6 h-6 animate-spin" /> Processing AI... 
+                      <Loader2 className="w-5 h-5 animate-spin" /> Processing AI... 
                     </>
                   ) : (
                     <>
-                      <Play className="w-6 h-6 fill-current" /> Auto-Convert Data
+                      <Sparkles className="w-5 h-5" /> Auto-Convert Data
                     </>
                   )}
                 </button>
@@ -232,17 +249,17 @@ export default function App() {
 
               {/* Progress Bar */}
               {isProcessing && (
-                <div className="space-y-3 mt-6 bg-slate-900/40 p-4 rounded-xl border border-slate-700/50">
-                  <div className="flex justify-between text-sm text-slate-300 font-medium tracking-wide">
+                <div className="space-y-3 pt-4 border-t border-white/5 animate-in fade-in duration-500">
+                  <div className="flex justify-between text-sm text-zinc-300 font-medium tracking-wide">
                     <span className="flex items-center gap-2">
-                       <span className="w-2 h-2 rounded-full bg-brand-500 animate-ping"></span>
+                       <span className="w-2 h-2 rounded-full bg-brand-400 animate-pulse shadow-[0_0_8px_rgba(56,189,248,0.8)]"></span>
                        {progressText}
                     </span>
-                    <span className="text-brand-400">{progress}%</span>
+                    <span className="text-brand-400 tabular-nums">{progress}%</span>
                   </div>
-                  <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                  <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden shadow-inner">
                     <div 
-                      className="h-full bg-brand-500 transition-all duration-300 ease-out relative"
+                      className="h-full bg-gradient-to-r from-brand-600 to-brand-400 transition-all duration-300 ease-out relative"
                       style={{ width: `${progress}%` }}
                     >
                       <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>

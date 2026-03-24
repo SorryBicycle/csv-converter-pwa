@@ -10,10 +10,13 @@ export async function processBatchWithAI(
   // or they can provide an OpenAI key. Standard format works for both.
   // The user uses xAI for batching but OpenAI api format is universally supported.
   
+  const isGroq = apiKey.startsWith('gsk_');
+  const isXAI = apiKey.startsWith('xoxb');
+  
   const client = new OpenAI({
     apiKey: apiKey,
-    baseURL: apiKey.startsWith('xoxb') ? 'https://api.x.ai/v1' : 'https://api.openai.com/v1',
-    dangerouslyAllowBrowser: true // Safe because key is stored locally and provided by the user
+    baseURL: isGroq ? 'https://api.groq.com/openai/v1' : (isXAI ? 'https://api.x.ai/v1' : 'https://api.openai.com/v1'),
+    dangerouslyAllowBrowser: true 
   });
 
   const prompt = `
@@ -38,10 +41,10 @@ ${JSON.stringify(rawBatch, null, 2)}
 
   try {
     const response = await client.chat.completions.create({
-      model: apiKey.startsWith('xoxb') ? 'grok-beta' : 'gpt-4o-mini',
+      model: isGroq ? 'llama-3.3-70b-versatile' : (isXAI ? 'grok-beta' : 'gpt-4o-mini'),
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.1,
-      response_format: { type: "json_object" } // Enforce JSON
+      response_format: { type: "json_object" } 
     });
 
     const content = response.choices[0].message.content || '[]';
