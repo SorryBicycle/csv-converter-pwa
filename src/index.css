@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-900 text-slate-100 antialiased min-h-screen selection:bg-brand-500 selection:text-white;
+    background-image: radial-gradient(circle at 15% 50%, rgba(2, 132, 199, 0.15), transparent 25%),
+                      radial-gradient(circle at 85% 30%, rgba(14, 165, 233, 0.15), transparent 25%);
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 shadow-xl rounded-2xl;
+  }
+  
+  .glass-input {
+    @apply w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all duration-200 mt-1;
+  }
+  
+  .btn-primary {
+    @apply flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 shadow-lg shadow-brand-500/25 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+  
+  .btn-secondary {
+    @apply flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+  
+  .drop-zone {
+    @apply border-2 border-dashed border-slate-600 hover:border-brand-500 bg-slate-800/40 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 text-center group hover:bg-slate-800/60;
+  }
+}
