@@ -6,7 +6,6 @@ import {
   AlertCircle, 
   Loader2, 
   Sparkles,
-  ChevronRight,
   Zap,
   CheckCircle2
 } from 'lucide-react';
@@ -25,8 +24,6 @@ export default function App() {
   const [progressText, setProgressText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [resultCsv, setResultCsv] = useState<string | null>(null);
-  const [isCoolingDown, setIsCoolingDown] = useState(false);
-  const [countdown, setCountdown] = useState(0);
   const [conversionMode] = useState<'script' | 'ai'>('script');
 
   useEffect(() => {
@@ -85,14 +82,11 @@ export default function App() {
 
         for (let i = 0; i < totalBatches; i++) {
           if (i > 0) {
-            setIsCoolingDown(true);
             const WAIT_TIME = 15;
             for (let c = WAIT_TIME; c > 0; c--) {
-              setCountdown(c);
               setProgressText(`Cooling down... (${c}s)`);
               await sleep(1000);
             }
-            setIsCoolingDown(false);
           }
 
           setProgressText(`Processing batch ${i + 1} of ${totalBatches}...`);
