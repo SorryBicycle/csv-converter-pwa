@@ -26,6 +26,8 @@ export default function App() {
   const [progressText, setProgressText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [resultCsv, setResultCsv] = useState<string | null>(null);
+  const [isCoolingDown, setIsCoolingDown] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
     const savedKey = localStorage.getItem('xai_api_key') || import.meta.env.VITE_GROQ_API_KEY;
@@ -69,14 +71,28 @@ export default function App() {
 
       const validSupplierData = supplierData.filter(row => Object.keys(row).length > 0);
       let finalData: any[] = [];
-      const BATCH_SIZE = 15;
+      const BATCH_SIZE = 5; // Reduced from 15 to stay within free tier TPM limits
       const totalBatches = Math.ceil(validSupplierData.length / BATCH_SIZE);
       
+      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
       for (let i = 0; i < totalBatches; i++) {
+        // If not the first batch, wait to reset TPM window
+        if (i > 0) {
+          setIsCoolingDown(true);
+          const WAIT_TIME = 15; // 15 seconds
+          for (let c = WAIT_TIME; c > 0; c--) {
+            setCountdown(c);
+            setProgressText(`Cooling down... (${c}s)`);
+            await sleep(1000);
+          }
+          setIsCoolingDown(false);
+        }
+
         setProgressText(`Processing batch ${i + 1} of ${totalBatches}...`);
         const batch = validSupplierData.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
         
-        let retries = 2;
+        let retries = 3;
         let success = false;
         while (retries > 0 && !success) {
           try {
@@ -85,8 +101,14 @@ export default function App() {
             success = true;
           } catch (err: any) {
             retries--;
-            if (retries === 0) throw new Error(`AI processing failed: ${err.message}`);
-            await new Promise(r => setTimeout(r, 2000));
+            if (err.status === 429 || err.message?.includes('429')) {
+              setProgressText(`Rate limited. Retrying in 20s...`);
+              await sleep(20000);
+            } else if (retries === 0) {
+              throw new Error(`AI processing failed: ${err.message}`);
+            } else {
+              await sleep(2000);
+            }
           }
         }
         
@@ -236,14 +258,19 @@ export default function App() {
               <div className="space-y-6 animate-pulse">
                 <div className="flex items-center justify-between text-white font-black text-xs uppercase tracking-[0.2em]">
                   <span className="flex items-center gap-3">
-                    <Loader2 className="w-4 h-4 animate-spin text-accent" /> {progressText}
+                    <Loader2 className={`w-4 h-4 animate-spin ${isCoolingDown ? 'text-amber-400' : 'text-accent'}`} /> 
+                    {progressText}
                   </span>
-                  <span className="text-accent">{progress}%</span>
+                  <span className={isCoolingDown ? 'text-amber-400' : 'text-accent'}>{isCoolingDown ? `${countdown}s` : `${progress}%`}</span>
                 </div>
                 <div className="h-4 w-full bg-white/5 rounded-full overflow-hidden relative border border-white/5">
                   <div 
-                    className="h-full bg-gradient-to-r from-blue-500 via-indigo-400 to-blue-500 transition-all duration-500 relative"
-                    style={{ width: `${progress}%` }}
+                    className={`h-full transition-all duration-500 relative ${
+                      isCoolingDown 
+                        ? 'bg-gradient-to-r from-amber-500 via-orange-400 to-amber-500' 
+                        : 'bg-gradient-to-r from-blue-500 via-indigo-400 to-blue-500'
+                    }`}
+                    style={{ width: `${isCoolingDown ? (countdown / 15) * 100 : progress}%` }}
                   >
                     <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/20 to-transparent w-full"></div>
                   </div>
