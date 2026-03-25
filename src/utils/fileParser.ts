@@ -1,13 +1,13 @@
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
-export async function parseFileToJSON(file: File): Promise<any[]> {
+export async function parseFileToJSON(file: File, rawRows: boolean = false): Promise<any[]> {
   const extension = file.name.split('.').pop()?.toLowerCase();
 
   if (extension === 'csv') {
     return new Promise((resolve, reject) => {
       Papa.parse(file, {
-        header: true,
+        header: !rawRows,
         skipEmptyLines: true,
         complete: (results) => resolve(results.data),
         error: (err) => reject(err)
@@ -22,10 +22,15 @@ export async function parseFileToJSON(file: File): Promise<any[]> {
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
-          // We use header: 1 to get array of arrays so we can preserve structure if headers are wonky
-          // But actually header: 0 or default returns objects, which is better for LLM key-value pairing
-          const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-          resolve(json);
+          
+          if (rawRows) {
+            // Return array of arrays (rows)
+            const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
+            resolve(rows);
+          } else {
+            const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+            resolve(json);
+          }
         } catch (err) {
           reject(err);
         }

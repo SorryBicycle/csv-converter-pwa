@@ -2,20 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { 
   UploadCloud, 
   FileSpreadsheet, 
-  Key, 
-  Settings2, 
   Download, 
   AlertCircle, 
   Loader2, 
   Sparkles,
   ChevronRight,
-  ShieldCheck,
   Zap,
   CheckCircle2
 } from 'lucide-react';
 import Papa from 'papaparse';
 import { parseFileToJSON } from './utils/fileParser';
 import { processBatchWithAI } from './services/ai';
+
+import { convertLegacyData } from './services/legacyConverter';
 
 export default function App() {
   const [apiKey, setApiKey] = useState('');
@@ -28,16 +27,14 @@ export default function App() {
   const [resultCsv, setResultCsv] = useState<string | null>(null);
   const [isCoolingDown, setIsCoolingDown] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [conversionMode] = useState<'script' | 'ai'>('script');
 
   useEffect(() => {
     const savedKey = localStorage.getItem('xai_api_key') || import.meta.env.VITE_GROQ_API_KEY;
     if (savedKey) setApiKey(savedKey);
   }, []);
 
-  const handleKeySave = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setApiKey(e.target.value);
-    localStorage.setItem('xai_api_key', e.target.value);
-  };
+  // API key is now managed in background (localStorage or .env)
 
   const handleFileDrop = (e: React.ChangeEvent<HTMLInputElement>, type: 'template' | 'supplier') => {
     const file = e.target.files?.[0];
@@ -49,7 +46,7 @@ export default function App() {
   };
 
   const startProcessing = async () => {
-    if (!apiKey) return setError("Please input your API Key first.");
+    if (conversionMode === 'ai' && !apiKey) return setError("Please input your API Key first.");
     if (!templateFile || !supplierFile) return setError("Please upload both files.");
     
     setIsProcessing(true);
@@ -64,56 +61,66 @@ export default function App() {
       const templateHeaders = Object.keys(templateData[0]);
 
       setProgress(15);
-      setProgressText('Parsing supplier data...');
       
-      const supplierData = await parseFileToJSON(supplierFile);
-      if (supplierData.length === 0) throw new Error("Supplier file is empty.");
-
-      const validSupplierData = supplierData.filter(row => Object.keys(row).length > 0);
       let finalData: any[] = [];
-      const BATCH_SIZE = 5; // Reduced from 15 to stay within free tier TPM limits
-      const totalBatches = Math.ceil(validSupplierData.length / BATCH_SIZE);
-      
-      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-      for (let i = 0; i < totalBatches; i++) {
-        // If not the first batch, wait to reset TPM window
-        if (i > 0) {
-          setIsCoolingDown(true);
-          const WAIT_TIME = 15; // 15 seconds
-          for (let c = WAIT_TIME; c > 0; c--) {
-            setCountdown(c);
-            setProgressText(`Cooling down... (${c}s)`);
-            await sleep(1000);
-          }
-          setIsCoolingDown(false);
-        }
-
-        setProgressText(`Processing batch ${i + 1} of ${totalBatches}...`);
-        const batch = validSupplierData.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+      if (conversionMode === 'script') {
+        setProgressText('Running Legacy Script Logic...');
+        const rawSupplierRows = await parseFileToJSON(supplierFile, true);
+        if (rawSupplierRows.length === 0) throw new Error("Supplier file is empty.");
         
-        let retries = 3;
-        let success = false;
-        while (retries > 0 && !success) {
-          try {
-            const processedBatch = await processBatchWithAI(apiKey, templateHeaders, batch);
-            finalData = [...finalData, ...processedBatch];
-            success = true;
-          } catch (err: any) {
-            retries--;
-            if (err.status === 429 || err.message?.includes('429')) {
-              setProgressText(`Rate limited. Retrying in 20s...`);
-              await sleep(20000);
-            } else if (retries === 0) {
-              throw new Error(`AI processing failed: ${err.message}`);
-            } else {
-              await sleep(2000);
+        finalData = convertLegacyData(rawSupplierRows);
+        setProgress(90);
+      } else {
+        // AI Mode
+        setProgressText('Parsing supplier data (AI mode)...');
+        const supplierData = await parseFileToJSON(supplierFile);
+        if (supplierData.length === 0) throw new Error("Supplier file is empty.");
+
+        const validSupplierData = supplierData.filter(row => Object.keys(row).length > 0);
+        const BATCH_SIZE = 5; 
+        const totalBatches = Math.ceil(validSupplierData.length / BATCH_SIZE);
+        
+        const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+        for (let i = 0; i < totalBatches; i++) {
+          if (i > 0) {
+            setIsCoolingDown(true);
+            const WAIT_TIME = 15;
+            for (let c = WAIT_TIME; c > 0; c--) {
+              setCountdown(c);
+              setProgressText(`Cooling down... (${c}s)`);
+              await sleep(1000);
+            }
+            setIsCoolingDown(false);
+          }
+
+          setProgressText(`Processing batch ${i + 1} of ${totalBatches}...`);
+          const batch = validSupplierData.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+          
+          let retries = 3;
+          let success = false;
+          while (retries > 0 && !success) {
+            try {
+              const processedBatch = await processBatchWithAI(apiKey, templateHeaders, batch);
+              finalData = [...finalData, ...processedBatch];
+              success = true;
+            } catch (err: any) {
+              retries--;
+              if (err.status === 429 || err.message?.includes('429')) {
+                setProgressText(`Rate limited. Retrying in 20s...`);
+                await sleep(20000);
+              } else if (retries === 0) {
+                throw new Error(`AI processing failed: ${err.message}`);
+              } else {
+                await sleep(2000);
+              }
             }
           }
+          
+          const percentage = 15 + Math.round(((i + 1) / totalBatches) * 80);
+          setProgress(percentage);
         }
-        
-        const percentage = 15 + Math.round(((i + 1) / totalBatches) * 80);
-        setProgress(percentage);
       }
 
       setProgressText('Finalizing result...');
@@ -157,31 +164,7 @@ export default function App() {
         
         {/* Sidebar Controls */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="premium-card p-8">
-            <h2 className="text-xl font-bold flex items-center gap-3 text-white mb-8 border-b border-white/5 pb-6">
-              <Settings2 className="w-5 h-5 text-accent" /> Settings
-            </h2>
-            
-            <div className="space-y-6">
-              <div>
-                <label className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-3 block">Groq API Key</label>
-                <div className="relative group">
-                  <input 
-                    type="password" 
-                    className="premium-input pr-12" 
-                    placeholder="gsk_..." 
-                    value={apiKey}
-                    onChange={handleKeySave}
-                  />
-                  <Key className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600 group-focus-within:text-accent transition-colors" />
-                </div>
-                <div className="mt-4 flex items-center gap-2 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-                  <ShieldCheck className="w-3 h-3" /> Encrypted Local Storage
-                </div>
-              </div>
-            </div>
-          </div>
-
+          {/* Result Area */}
           {resultCsv && !isProcessing && (
             <div className="p-1 rounded-[2.5rem] bg-gradient-to-br from-blue-500 to-indigo-600 shadow-[0_20px_50px_rgba(59,130,246,0.3)] transform transition-all duration-500 hover:scale-[1.02]">
               <div className="bg-slate-900 rounded-[2.3rem] p-8 flex flex-col gap-6">
