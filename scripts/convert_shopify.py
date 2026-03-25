@@ -1,9 +1,9 @@
-import openpyxl
 import csv
 import os
+from typing import List
 
-input_excel = r"c:\Users\matty\Desktop\antigravity projects\shopify uploads\Tougherdealer.xlsx"
-output_csv = r"c:\Users\matty\Desktop\antigravity projects\shopify uploads\converted_shopify.csv"
+input_csv = r"c:\Users\matty\Desktop\antigravity projects\csv-converter-pwa\scripts\ZTOW001_ProductData_RSA_2026-03-25.csv"
+output_csv = r"c:\Users\matty\Desktop\antigravity projects\csv-converter-pwa\scripts\shopify_converted.csv"
 
 # Shopify template headers
 headers = [
@@ -18,117 +18,120 @@ headers = [
 ]
 
 def format_price(price):
-    if price is None: return ""
+    if price is None or price == "": return ""
     try:
-        if isinstance(price, str):
-            price = price.replace('R', '').replace(',', '').strip()
-        return round(float(price), 2)
+        # Remove any currency symbols or commas
+        clean_price = str(price).replace('R', '').replace(',', '').strip()
+        # Using format to avoid Pyre round() issues and ensure 2 decimal places
+        return "{:.2f}".format(float(clean_price))
     except:
         return ""
 
 def process_file():
-    wb = openpyxl.load_workbook(input_excel, data_only=True)
-    ws = wb.active
+    if not os.path.exists(input_csv):
+        print(f"Error: Input file not found at {input_csv}")
+        return
 
-    current_brand = ""
-    current_model = ""
-    current_category = ""
-    
-    rows = list(ws.values)
-    
-    with open(output_csv, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=headers)
+    with open(input_csv, 'r', encoding='utf-8') as f_in, \
+         open(output_csv, 'w', newline='', encoding='utf-8') as f_out:
+        
+        reader = csv.DictReader(f_in)
+        writer = csv.DictWriter(f_out, fieldnames=headers)
         writer.writeheader()
         
-        for i, row in enumerate(rows):
-            # Skip header block
-            if i < 6: continue
+        for row in reader:
+            code = row.get('Code', '').strip()
+            if not code:
+                continue
                 
-            col0 = row[0]
-            col1 = row[1]
-            price_rsp = row[2]
-            price_dealer = row[3]
+            handle = code.lower().replace(' ', '-')
+            description = row.get('Description', '') or ""
+            title = description.strip()
+            long_desc = row.get('LongDescription', '') or ""
+            narration = row.get('Narration', '') or ""
+            body_html_content = long_desc.strip() or narration.strip() or title
+            vendor = row.get('Brand', '').strip()
             
-            # Check for hierarchy headers
-            if col0 is not None and not str(col0).startswith('0') and col1 is None and price_rsp is None:
-                # Brand or Category
-                val = str(col0).strip()
-                if val.isupper() and "COVERS" not in val and "ACCESSORIES" not in val and "MATS" not in val:
-                    current_brand = val
-                else:
-                    if "ACCESSORIES" in val or "COVERS" in val or "MATS" in val:
-                        current_category = val.replace(" (incl Delivery)", "").replace(" (excl Delivery)", "").replace(" (incl Delivery & Duffel Bag)", "").strip()
-                continue
+            # Pricing
+            price = format_price(row.get('RetailPrice', ''))
+            cost = format_price(row.get('DiscountPrice', ''))
+            
+            # Weight
+            weight_kg = row.get('Weight_kg', '0')
+            try:
+                grams = int(float(weight_kg) * 1000)
+            except:
+                grams = 0
                 
-            if col0 is None and col1 is not None and price_rsp is None:
-                # Could be a model header or sub-category
-                val = str(col1).strip()
-                if "Single Cab" in val or "Super Cab" in val or "Double Cab" in val:
-                    pass # Just sub-header
-                else:
-                    # Model header
-                    current_model = val
-                continue
-                
-            # Data row
-            if col0 is not None and col1 is not None and price_rsp is not None:
-                part_no = str(col0).strip()
-                if part_no == 'Part No': continue # Skip table header
-                if part_no == '0': continue # Skip weird rows
-                
-                desc = str(col1).strip()
-                
-                # Default type from part prefix if category is missing
-                item_type = current_category
-                if not item_type:
-                    if part_no.startswith('SC'): item_type = "SEAT COVERS"
-                    elif part_no.startswith('DC'): item_type = "DASH COVERS"
-                    elif part_no.startswith('FM'): item_type = "FLOOR MATS"
-                    elif part_no.startswith('A-'): item_type = "ACCESSORIES"
-                
-                long_title = desc
-                if current_brand and current_brand not in long_title.upper():
-                    long_title = current_brand + " - " + long_title
-                
-                short_title = long_title.split(";")[0].strip()
-                if item_type and item_type.upper() not in short_title.upper():
-                    short_title = short_title + " - " + item_type
-                
-                csv_row = {
-                    "Handle": part_no.lower(),
-                    "Title": short_title,
-                    "Body (HTML)": f"<p>{long_title}</p>",
-                    "Vendor": "TOUGHER",
-                    "Product Category": "Vehicles & Parts > Vehicle Parts & Accessories > Motor Vehicle Parts > Motor Vehicle Frame & Body Parts",
-                    "Type": item_type,
-                    "Tags": item_type,
-                    "Published": "TRUE",
-                    "Option1 Name": "Title",
-                    "Option1 Value": "Default Title",
-                    "Variant SKU": part_no,
-                    "Variant Grams": "0",
-                    "Variant Inventory Tracker": "shopify",
-                    "Variant Inventory Qty": "0",
-                    "Variant Inventory Policy": "continue",
-                    "Variant Fulfillment Service": "manual",
-                    "Variant Price": format_price(price_rsp),
-                    "Variant Requires Shipping": "TRUE",
-                    "Variant Taxable": "FALSE",
-                    "Variant Barcode": part_no,
-                    "Image Src": "", # Need to add images later manually or via logic
-                    "Image Position": "1",
-                    "Gift Card": "FALSE",
-                    "Google Shopping / Google Product Category": "8227",
-                    "Google Shopping / Gender": "Unisex",
-                    "Google Shopping / Age Group": "Adult",
-                    "Google Shopping / Condition": "new",
-                    "Google Shopping / Custom Product": "FALSE",
-                    "Google: Custom Product (product.metafields.mm-google-shopping.custom_product)": "g",
-                    "Cost per item": format_price(price_dealer),
-                    "Status": "active"
-                }
-                
-                writer.writerow(csv_row)
+            # Categories & Tags
+            categories_str = row.get('Categories', '')
+            item_type = ""
+            tags = ""
+            if categories_str:
+                cats = [c.strip() for c in categories_str.split('|')]
+                if cats:
+                    item_type = cats[0]
+                    tags = ", ".join(cats)
+            
+            # Multiple Images handling
+            image_list: List[str] = []
+            for i in range(1, 9):
+                img_url = row.get(f'Image_{i}', '').strip()
+                if img_url:
+                    image_list.append(img_url)
+            
+            # First row for the product
+            csv_row = {
+                "Handle": handle,
+                "Title": title,
+                "Body (HTML)": f"<div>{body_html_content}</div>",
+                "Vendor": vendor,
+                "Product Category": "", # Could be mapped later if needed
+                "Type": item_type,
+                "Tags": tags,
+                "Published": "TRUE",
+                "Option1 Name": "Title",
+                "Option1 Value": "Default Title",
+                "Variant SKU": code,
+                "Variant Grams": grams,
+                "Variant Inventory Tracker": "shopify",
+                "Variant Inventory Qty": "0",
+                "Variant Inventory Policy": "continue",
+                "Variant Fulfillment Service": "manual",
+                "Variant Price": price,
+                "Variant Requires Shipping": "TRUE",
+                "Variant Taxable": "FALSE",
+                "Variant Barcode": code,
+                "Image Src": "",
+                "Image Position": "",
+                "Gift Card": "FALSE",
+                "Google Shopping / Condition": "new",
+                "Variant Weight Unit": "g",
+                "Cost per item": cost,
+                "Status": "active"
+            }
+            
+            if image_list:
+                csv_row["Image Src"] = image_list[0]
+                csv_row["Image Position"] = "1"
+            
+            writer.writerow(csv_row)
+            
+            # Extra rows for additional images
+            if len(image_list) > 1:
+                # Iterate from second element onwards
+                i = 0
+                for img_url in image_list:
+                    i += 1
+                    if i == 1:
+                        continue # Skip first image already handled
+                    
+                    img_row = {
+                        "Handle": handle,
+                        "Image Src": img_url,
+                        "Image Position": str(i)
+                    }
+                    writer.writerow(img_row)
 
 if __name__ == "__main__":
     process_file()
